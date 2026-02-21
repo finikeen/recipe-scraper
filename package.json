@@ -1,0 +1,29 @@
+{
+  "name": "scraper",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"nodemon server/index.js\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1",
+    "firebase": "^12.9.0",
+    "node-fetch": "^3.3.2",
+    "vue": "^3.5.25"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.2",
+    "@vitest/ui": "^4.0.18",
+    "concurrently": "^9.2.1",
+    "jsdom": "^28.1.0",
+    "nodemon": "^3.1.14",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  }
+}
