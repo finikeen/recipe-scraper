@@ -65,3 +65,36 @@ describe('extractJsonLd', () => {
     expect(result.directions).toEqual(['Put bread in toaster. Wait.'])
   })
 })
+
+const HTML_HEURISTICS_FIXTURE = `
+<html>
+<body>
+  <h1 class="recipe-title">Grandma's Cookies</h1>
+  <p class="recipe-description">Old family favorite.</p>
+  <ul class="ingredients">
+    <li>2 cups flour</li>
+    <li>1 cup sugar</li>
+    <li>1 egg</li>
+  </ul>
+  <div class="instructions">
+    <p>Mix dry ingredients.</p>
+    <p>Add egg and mix.</p>
+    <p>Bake at 350F for 12 minutes.</p>
+  </div>
+</body>
+</html>
+`
+
+describe('extractHtmlHeuristics', () => {
+  it('returns null when no recognizable recipe structure is found', () => {
+    expect(extractHtmlHeuristics('<html><body><p>Hello world</p></body></html>')).toBeNull()
+  })
+
+  it('extracts recipe name, ingredients, and directions from common class patterns', () => {
+    const result = extractHtmlHeuristics(HTML_HEURISTICS_FIXTURE)
+    expect(result).not.toBeNull()
+    expect(result.name).toBe("Grandma's Cookies")
+    expect(result.ingredients).toContain('2 cups flour')
+    expect(result.directions).toContain('Mix dry ingredients.')
+  })
+})

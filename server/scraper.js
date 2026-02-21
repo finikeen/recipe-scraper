@@ -52,3 +52,37 @@ function normalizeInstructions(raw) {
   }
   return []
 }
+
+/**
+ * Attempts to extract recipe data using common HTML class/tag patterns.
+ * Best-effort — may return incomplete data on unusual blog layouts.
+ * @param {string} html
+ * @returns {{ name, description, ingredients, directions } | null}
+ */
+export function extractHtmlHeuristics(html) {
+  const $ = cheerio.load(html)
+
+  const name = $(
+    '.recipe-title, .recipe-name, h1.entry-title, h1.post-title, h1'
+  ).first().text().trim()
+
+  const description = $(
+    '.recipe-description, .recipe-summary, .wprm-recipe-summary'
+  ).first().text().trim()
+
+  const ingredientEls = $(
+    '.ingredients li, .recipe-ingredients li, .wprm-recipe-ingredient'
+  )
+  const ingredients = ingredientEls.map((_, el) => $(el).text().trim()).get().filter(Boolean)
+
+  const directionEls = $(
+    '.instructions p, .directions p, .recipe-instructions p, ' +
+    '.wprm-recipe-instruction-text, .step'
+  )
+  const directions = directionEls.map((_, el) => $(el).text().trim()).get().filter(Boolean)
+
+  // Require at minimum a name and either ingredients or directions
+  if (!name || (ingredients.length === 0 && directions.length === 0)) return null
+
+  return { name, description, ingredients, directions }
+}
