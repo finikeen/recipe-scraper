@@ -1,30 +1,49 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
+import { ref, onMounted } from 'vue'
+import { getQueue } from './services/scrapeQueueService.js'
+import ImportView from './components/ImportView.vue'
+import QueueView from './components/QueueView.vue'
+import ReviewView from './components/ReviewView.vue'
+
+const currentView = ref('loading')
+const pendingReview = ref(null) // { queueItem, recipe }
+
+onMounted(async () => {
+  const queue = await getQueue()
+  currentView.value = queue.length === 0 ? 'import' : 'queue'
+})
+
+function onImportComplete() {
+  currentView.value = 'queue'
+}
+
+function onReviewReady({ queueItem, recipe }) {
+  pendingReview.value = { queueItem, recipe }
+  currentView.value = 'review'
+}
+
+function onReviewDone() {
+  pendingReview.value = null
+  currentView.value = 'queue'
+}
 </script>
 
 <template>
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
+  <div id="app">
+    <h1>Recipe Scraper</h1>
+    <div v-if="currentView === 'loading'">Loading...</div>
+    <ImportView v-else-if="currentView === 'import'" @complete="onImportComplete" />
+    <QueueView v-else-if="currentView === 'queue'" @review-ready="onReviewReady" />
+    <ReviewView
+      v-else-if="currentView === 'review'"
+      :queue-item="pendingReview.queueItem"
+      :recipe="pendingReview.recipe"
+      @done="onReviewDone"
+    />
   </div>
-  <HelloWorld msg="Vite + Vue" />
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
-}
+<style>
+body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+h1 { border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
 </style>
