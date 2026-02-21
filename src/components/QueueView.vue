@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { getQueue, updateQueueItem } from "../services/scrapeQueueService.js";
+import { saveRecipe } from "../services/recipesService.js";
 
 const emit = defineEmits(["review-ready"]);
 
 const queue = ref([]);
 const scraping = ref(false);
 const activeTab = ref("pending");
+const scrapingItem = ref(null);
 
 const pending = computed(() =>
   queue.value.filter((i) => i.status === "pending"),
@@ -53,12 +55,29 @@ async function processItem(item) {
 
 async function startScraping() {
   scraping.value = true;
-  for (const item of pending.value) {
+  const snapshot = pending.value.slice();
+  for (const item of snapshot) {
     if (!scraping.value) break;
-    await processItem(item);
-    if (item.status === "scraped") break;
-    await new Promise((r) => setTimeout(r, 1500));
+    scrapingItem.value = item;
+
+    const result = await scrapeUrl(item);
+
+    if (!result.success) {
+      await updateQueueItem(item.id, {
+        status: "failed",
+        failureReason: result.failureReason,
+      });
+      item.status = "failed";
+      item.failureReason = result.failureReason;
+    } else {
+      const recipeId = await saveRecipe(result.recipe, item.url);
+      await updateQueueItem(item.id, { status: "saved", recipeId });
+      item.status = "saved";
+    }
+
+    await new Promise((r) => setTimeout(r, 2000));
   }
+  scrapingItem.value = null;
   scraping.value = false;
 }
 
@@ -97,7 +116,10 @@ function stopScraping() {
         Start Scraping
       </button>
       <button v-if="scraping" @click="stopScraping">Stop</button>
-      <span v-if="pending.length === 0">All done!</span>
+      <span v-if="scraping && scrapingItem" class="scraping-status">
+        Scraping: {{ scrapingItem.title }}
+      </span>
+      <span v-if="!scraping && pending.length === 0">All done!</span>
     </div>
 
     <ul class="queue-list">
@@ -167,5 +189,10 @@ function stopScraping() {
 .failure-reason {
   color: #c00;
   font-size: 0.8rem;
+}
+.scraping-status {
+  color: #666;
+  font-size: 0.9rem;
+  font-style: italic;
 }
 </style>
