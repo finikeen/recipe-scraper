@@ -1,4 +1,20 @@
 import * as cheerio from 'cheerio'
+import { parseIngredient } from 'parse-ingredient'
+
+function parseIngredients(strings) {
+  return strings.map((original, order) => {
+    const [parsed] = parseIngredient(original) ?? [{}]
+    return {
+      quantity:  parsed.quantity  ?? null,
+      quantity2: parsed.quantity2 ?? null,
+      unit:      parsed.unitOfMeasure ?? null,
+      unitId:    parsed.unitOfMeasureID ?? null,
+      item:      parsed.description ?? original,
+      original,
+      order,
+    }
+  })
+}
 
 /**
  * Attempts to extract recipe data from JSON-LD structured data.
@@ -27,11 +43,13 @@ export function extractJsonLd(html) {
 
   if (!recipe) return null
 
+  const ingredients = normalizeIngredients(recipe.recipeIngredient)
   return {
     name: recipe.name || '',
     description: recipe.description || '',
-    ingredients: normalizeIngredients(recipe.recipeIngredient),
+    ingredients,
     directions: normalizeInstructions(recipe.recipeInstructions),
+    parsedIngredients: parseIngredients(ingredients),
   }
 }
 
@@ -84,5 +102,5 @@ export function extractHtmlHeuristics(html) {
   // Require at minimum a name and either ingredients or directions
   if (!name || (ingredients.length === 0 && directions.length === 0)) return null
 
-  return { name, description, ingredients, directions }
+  return { name, description, ingredients, directions, parsedIngredients: parseIngredients(ingredients) }
 }

@@ -98,3 +98,34 @@ describe('extractHtmlHeuristics', () => {
     expect(result.directions).toContain('Mix dry ingredients.')
   })
 })
+
+describe('parsedIngredients', () => {
+  it('is present on extractJsonLd result with correct shape', () => {
+    const result = extractJsonLd(JSON_LD_FIXTURE)
+    expect(result.parsedIngredients).toHaveLength(3)
+    // spot-check: "2 eggs"
+    const eggs = result.parsedIngredients.find(i => i.original === '2 eggs')
+    expect(eggs).toMatchObject({ quantity: 2, unit: null, item: 'eggs', order: 2 })
+  })
+
+  it('parses fractional quantities and units correctly', () => {
+    const result = extractJsonLd(`
+      <html><head><script type="application/ld+json">
+      {"@type":"Recipe","name":"Test","recipeIngredient":["1 1/2 cups sugar"],"recipeInstructions":"Mix."}
+      </script></head></html>
+    `)
+    const [ing] = result.parsedIngredients
+    expect(ing.quantity).toBe(1.5)
+    expect(ing.unit).toBe('cups')
+    expect(ing.item).toBe('sugar')
+    expect(ing.original).toBe('1 1/2 cups sugar')
+    expect(ing.order).toBe(0)
+  })
+
+  it('is present on extractHtmlHeuristics result', () => {
+    const result = extractHtmlHeuristics(HTML_HEURISTICS_FIXTURE)
+    expect(result.parsedIngredients).toHaveLength(3)
+    const flour = result.parsedIngredients.find(i => i.original === '2 cups flour')
+    expect(flour).toMatchObject({ quantity: 2, unit: 'cups', item: 'flour', order: 0 })
+  })
+})
