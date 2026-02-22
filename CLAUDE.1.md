@@ -22,7 +22,7 @@ This is a personal-use recipe scraper — a Vue 3 SPA backed by a local Express 
 1. **Import** — User uploads a browser bookmark export (`.html`). `bookmarkParser.js` (client-side, uses `DOMParser`) finds the "Recipes" folder and extracts URLs. Items are written to Firestore `scrapeQueue` collection with `status: 'pending'`.
 2. **Queue** — `QueueView.vue` shows the queue tabbed by status (pending/saved/failed). "Start Scraping" loops through pending items, POSTing each URL to `/api/scrape`. On success, recipe is auto-saved to Firestore; on failure, item is marked failed with a reason.
 3. **Review** — When scraping a single item via the per-row "Scrape" button, a successful scrape navigates to `ReviewView.vue` for manual confirm/reject before saving.
-4. **Save** — `recipesService.js` writes to Firestore `recipes` collection: `{ name, description, ingredients, directions, sourceUrl, createdAt }`. `saveRecipe()` also writes a `recipes/{id}/ingredients` subcollection atomically via `writeBatch` when `parsedIngredients` is provided.
+4. **Save** — `recipesService.js` writes to Firestore `recipes` collection: `{ name, description, ingredients, directions, sourceUrl, createdAt }`.
 
 **View management:** No Vue Router. `App.vue` uses a `currentView` ref (`'loading' | 'import' | 'queue' | 'review'`) and switches views based on queue state and emitted events.
 
@@ -40,14 +40,10 @@ This is a personal-use recipe scraper — a Vue 3 SPA backed by a local Express 
 | `server/index.js` | `POST /api/scrape` route |
 | `src/App.vue` | View manager |
 | `tests/` | Vitest unit tests for `bookmarkParser` and `scraper` |
-| `scripts/migrateIngredients.js` | Backfills parsed-ingredient subcollections for existing recipes. Run with: `node --env-file=.env.local scripts/migrateIngredients.js` |
-| `scripts/migrateEnrichRecipes.js` | AI enrichment: tags + re-parsed ingredients. Run: `node --env-file=.env.local scripts/migrateEnrichRecipes.js` |
 
 ## Firebase / Firestore
 
 Config is read from `.env.local` (`VITE_FIREBASE_*` variables). When creating a new Firestore database, Firebase defaults to production mode (deny all). For this personal tool, Firestore rules must be set to `allow read, write: if true` in Firebase Console → Firestore → Rules.
-
-`ANTHROPIC_API_KEY` must also be set in `.env.local` to run the AI enrichment migration (`migrateEnrichRecipes.js`).
 
 ## jsdom / Bookmark Parsing Quirk
 
@@ -59,41 +55,3 @@ Browser bookmark HTML is non-standard. When parsed by `DOMParser` (or jsdom in t
 - Scoped styles with `<style scoped>` in components
 - Plain JavaScript (no TypeScript)
 - No Pinia or Vue Router — local `ref`/`computed` and prop/emit patterns only
-
-## Server Conventions
-
-- `POST /api/scrape` always returns HTTP 200 — callers must inspect `success: boolean` and `failureReason: string` in the response body to detect scrape failures
-- Scrape requests use a 30-second `AbortController` timeout
-- Outbound fetch uses a `Mozilla/5.0` User-Agent spoof to avoid bot-blocking
-
-## Scrape Queue Status Flow
-
-```
-pending → saved    (via "Start Scraping" bulk loop; 2-second delay between requests; auto-saves to Firestore)
-pending → failed   (on scrape error or manual reject)
-```
-
-- `scraped` is a **transient UI-only state** used while ReviewView is open — it is not stable in Firestore and should not be relied upon as a persistent status
-- Per-row "Scrape" button sends the result to `ReviewView` for manual confirm/reject (no auto-save)
-- "Start Scraping" auto-saves directly on success, skipping ReviewView
-
-## Ingredients Subcollection
-
-`saveRecipe()` atomically writes the parent `recipes/{id}` document and a `recipes/{id}/ingredients` subcollection using `writeBatch`. The subcollection is only written when `parsedIngredients` is provided.
-
-Subcollection document schema (parsed by `parse-ingredient` package):
-
-| Field | Description |
-|---|---|
-| `quantity` | Primary numeric quantity |
-| `quantity2` | Secondary quantity (for ranges) |
-| `unit` | Unit string (e.g. `"cup"`) |
-| `unitId` | Normalized unit identifier |
-| `item` | Ingredient name |
-| `original` | Original unparsed string |
-| `order` | Integer sort order |
-
-## Testing Notes
-
-- Vitest globals (`describe`, `it`, `expect`) are enabled — no imports needed in test files
-- `.worktrees/` is excluded from test collection (configured in `vite.config.js`)
