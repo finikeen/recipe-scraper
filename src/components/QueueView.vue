@@ -1,6 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { getQueue, updateQueueItem } from "../services/scrapeQueueService.js";
+import {
+  getQueue,
+  addToQueue,
+  updateQueueItem,
+} from "../services/scrapeQueueService.js";
 import { saveRecipe } from "../services/recipesService.js";
 
 const emit = defineEmits(["review-ready"]);
@@ -9,6 +13,9 @@ const queue = ref([]);
 const scraping = ref(false);
 const activeTab = ref("pending");
 const scrapingItem = ref(null);
+const newUrl = ref("");
+const addingUrl = ref(false);
+const addStatus = ref("");
 
 const pending = computed(() =>
   queue.value.filter((i) => i.status === "pending"),
@@ -84,11 +91,38 @@ async function startScraping() {
 function stopScraping() {
   scraping.value = false;
 }
+
+async function addUrl() {
+  const url = newUrl.value.trim();
+  if (!url) return;
+  addingUrl.value = true;
+  const added = await addToQueue([{ url, title: url, folder: "" }]);
+  if (added.length > 0) {
+    queue.value.push(...added);
+    addStatus.value = "Added!";
+  } else {
+    addStatus.value = "Already in queue";
+  }
+  newUrl.value = "";
+  addingUrl.value = false;
+  setTimeout(() => (addStatus.value = ""), 2000);
+}
 </script>
 
 <template>
   <div>
     <h2>Scrape Queue</h2>
+
+    <form class="add-url-form" @submit.prevent="addUrl">
+      <input
+        v-model="newUrl"
+        type="url"
+        placeholder="https://example.com/recipe"
+        :disabled="addingUrl"
+      />
+      <button type="submit" :disabled="addingUrl || !newUrl.trim()">Add</button>
+      <span v-if="addStatus" class="add-status">{{ addStatus }}</span>
+    </form>
 
     <div class="tabs">
       <button
@@ -194,5 +228,22 @@ function stopScraping() {
   color: #666;
   font-size: 0.9rem;
   font-style: italic;
+}
+.add-url-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+.add-url-form input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.add-status {
+  font-size: 0.85rem;
+  color: #555;
 }
 </style>

@@ -15,17 +15,20 @@ export async function addToQueue(items) {
   const existingUrls = new Set(existing.map(e => e.url))
 
   const newItems = items.filter(item => !existingUrls.has(item.url))
+  const added = []
   for (const item of newItems) {
-    await addDoc(collection(db, COL), {
+    const data = {
       url: item.url,
       title: item.title,
       folder: item.folder,
       status: 'pending',
       recipeId: null,
       failureReason: null,
-    })
+    }
+    const ref = await addDoc(collection(db, COL), data)
+    added.push({ id: ref.id, ...data })
   }
-  return newItems.length
+  return added
 }
 
 export async function updateQueueItem(id, updates) {

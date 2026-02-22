@@ -38,7 +38,7 @@ const db  = getFirestore(app)
 
 function parseIngredients(strings) {
   return strings.map((original, order) => {
-    const [parsed] = parseIngredient(original) ?? [{}]
+    const [parsed = {}] = parseIngredient(original) ?? []
     return {
       quantity:  parsed.quantity  ?? null,
       quantity2: parsed.quantity2 ?? null,

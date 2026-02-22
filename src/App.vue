@@ -1,30 +1,23 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getQueue } from './services/scrapeQueueService.js'
-import ImportView from './components/ImportView.vue'
-import QueueView from './components/QueueView.vue'
-import ReviewView from './components/ReviewView.vue'
+import { ref, onMounted } from "vue";
+import QueueView from "./components/QueueView.vue";
+import ReviewView from "./components/ReviewView.vue";
 
-const currentView = ref('loading')
-const pendingReview = ref(null) // { queueItem, recipe }
+const currentView = ref("loading");
+const pendingReview = ref(null); // { queueItem, recipe }
 
-onMounted(async () => {
-  const queue = await getQueue()
-  currentView.value = queue.length === 0 ? 'import' : 'queue'
-})
-
-function onImportComplete() {
-  currentView.value = 'queue'
-}
+onMounted(() => {
+  currentView.value = "queue";
+});
 
 function onReviewReady({ queueItem, recipe }) {
-  pendingReview.value = { queueItem, recipe }
-  currentView.value = 'review'
+  pendingReview.value = { queueItem, recipe };
+  currentView.value = "review";
 }
 
 function onReviewDone() {
-  pendingReview.value = null
-  currentView.value = 'queue'
+  pendingReview.value = null;
+  currentView.value = "queue";
 }
 </script>
 
@@ -32,8 +25,10 @@ function onReviewDone() {
   <div id="app">
     <h1>Recipe Scraper</h1>
     <div v-if="currentView === 'loading'">Loading...</div>
-    <ImportView v-else-if="currentView === 'import'" @complete="onImportComplete" />
-    <QueueView v-else-if="currentView === 'queue'" @review-ready="onReviewReady" />
+    <QueueView
+      v-else-if="currentView === 'queue'"
+      @review-ready="onReviewReady"
+    />
     <ReviewView
       v-else-if="currentView === 'review'"
       :queue-item="pendingReview.queueItem"
@@ -44,6 +39,14 @@ function onReviewDone() {
 </template>
 
 <style>
-body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
-h1 { border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+h1 {
+  border-bottom: 2px solid #333;
+  padding-bottom: 0.5rem;
+}
 </style>
