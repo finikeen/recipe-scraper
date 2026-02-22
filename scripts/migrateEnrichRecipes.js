@@ -67,7 +67,28 @@ Return a JSON object with:
     messages: [{ role: 'user', content: userMessage }],
   })
 
-  const text = message.content[0].text.trim()
+  let text = message.content[0].text.trim()
+
+  // Strip markdown code fences if present (try multiple strategies)
+  if (text.startsWith('```')) {
+    // Strategy 1: Match markdown fence pattern
+    let match = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/)
+    if (match) {
+      text = match[1]
+    } else {
+      // Strategy 2: Find first ``` and last ``` and extract between them
+      const firstFence = text.indexOf('```')
+      const lastFence = text.lastIndexOf('```')
+      if (firstFence !== lastFence) {
+        text = text.substring(firstFence + 3, lastFence).trim()
+        // Remove opening language specifier if present
+        if (text.startsWith('json\n')) {
+          text = text.substring(5)
+        }
+      }
+    }
+  }
+
   return JSON.parse(text)
 }
 
