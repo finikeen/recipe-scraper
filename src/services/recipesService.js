@@ -9,6 +9,10 @@ export async function saveRecipe(recipe, sourceUrl) {
     directions: recipe.directions,
     sourceUrl,
     createdAt: serverTimestamp(),
+    ...(recipe.keywords           != null && { keywords:           recipe.keywords }),
+    ...(recipe.servingSuggestions != null && { servingSuggestions: recipe.servingSuggestions }),
+    ...(recipe.dietaryVariants    != null && { dietaryVariants:    recipe.dietaryVariants }),
+    ...(recipe.enrichedSteps      != null && { enrichedSteps:      recipe.enrichedSteps }),
   })
 
   if (recipe.parsedIngredients?.length) {

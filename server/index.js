@@ -1,6 +1,7 @@
 import express from 'express'
 import fetch from 'node-fetch'
 import { extractJsonLd, extractHtmlHeuristics } from './scraper.js'
+import { enrichRecipe } from './enricher.js'
 
 const app = express()
 app.use(express.json())
@@ -45,6 +46,14 @@ app.post('/api/scrape', async (req, res) => {
 
   if (!recipe) {
     return res.status(200).json({ success: false, failureReason: 'No recipe data found' })
+  }
+
+  // Best-effort enrichment — if Ollama is unavailable, scrape still succeeds
+  try {
+    const enrichment = await enrichRecipe(recipe)
+    Object.assign(recipe, enrichment)
+  } catch {
+    // Ollama not running or enrichment failed — continue without enrichment
   }
 
   return res.status(200).json({ success: true, recipe })
