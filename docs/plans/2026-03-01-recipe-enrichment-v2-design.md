@@ -50,11 +50,12 @@ enrichedSteps:      Array<{
 ### Shared enricher module: `server/enricher.js`
 
 Exports a single `enrichRecipe(recipe)` async function:
-- Calls Claude Haiku (`claude-haiku-4-5-20251001`) with `max_tokens: 2048`
+- Calls local Ollama instance (`http://localhost:11434/api/generate`) with model `glm-5:cloud`
 - System prompt: `"You are a recipe analyst. Return ONLY valid JSON, no markdown fences."`
-- Includes the existing two-strategy markdown fence stripping
+- Uses `format: 'json'` to enforce JSON output, plus existing markdown fence stripping as fallback
 - Returns `{ keywords, servingSuggestions, dietaryVariants, enrichedSteps }`
 - Used by both the migration script and the live server
+- No API key required — runs entirely local
 
 ### Migration script: `scripts/migrateEnrichRecipes2.js`
 
@@ -68,24 +69,26 @@ Exports a single `enrichRecipe(recipe)` async function:
 ### Live scrape flow: `server/index.js`
 
 After a successful scrape, call `enrichRecipe(recipe)` before responding:
-- **Best-effort:** if enrichment fails or `ANTHROPIC_API_KEY` is unset, the scrape still succeeds — recipe is returned without enrichment fields
+- **Best-effort:** if enrichment fails or Ollama is not running, the scrape still succeeds — recipe is returned without enrichment fields
 - Enriched fields merged into the recipe object in the response payload
 
 ### Save flow: `src/services/recipesService.js`
 
 `saveRecipe()` spreads all recipe fields onto the Firestore document — no explicit changes needed since new fields are passed through generically. Verify this assumption during implementation.
 
-### Env var fix: `package.json`
+### Ollama requirement
 
-Update the `dev` nodemon command to load `.env.local` so `ANTHROPIC_API_KEY` reaches the Express server:
-
-```json
-"dev": "concurrently \"vite\" \"nodemon --exec 'node --env-file=.env.local' server/index.js\""
+Ollama must be running locally with the `glm-5:cloud` model pulled:
+```bash
+ollama pull glm-5:cloud
+ollama serve  # if not already running
 ```
+
+No API key or environment variables needed — enrichment works entirely offline.
 
 ---
 
-## Claude Prompt
+## Ollama Prompt
 
 **System:** `"You are a recipe analyst. Return ONLY valid JSON, no markdown fences."`
 
@@ -119,11 +122,10 @@ Return a JSON object with:
 
 | File | Change |
 |---|---|
-| `server/enricher.js` | New — shared `enrichRecipe()` function |
+| `server/enricher.js` | New — shared `enrichRecipe()` function using Ollama |
 | `scripts/migrateEnrichRecipes2.js` | New — migration script for existing recipes |
 | `server/index.js` | Call enricher after successful scrape (best-effort) |
 | `src/services/recipesService.js` | Verify new fields pass through to Firestore |
-| `package.json` | Update `dev` nodemon command to load `.env.local` |
 
 ---
 
