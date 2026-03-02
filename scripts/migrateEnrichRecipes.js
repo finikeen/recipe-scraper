@@ -6,31 +6,22 @@
  *   node --env-file=.env.local scripts/migrateEnrichRecipes.js
  *
  * Idempotent: recipes that already have a `tags` field are skipped.
+ * Requires serviceAccountKey.json in the project root.
  */
 
-import { initializeApp } from 'firebase/app'
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  writeBatch,
-  doc,
-} from 'firebase/firestore'
+import admin from 'firebase-admin'
+import { readFileSync } from 'fs'
 import Anthropic from '@anthropic-ai/sdk'
 
-// ── Firebase init ──────────────────────────────────────────────────────────
+// ── Firebase Admin init ────────────────────────────────────────────────────
 
-const firebaseConfig = {
-  apiKey:            process.env.VITE_FIREBASE_API_KEY,
-  authDomain:        process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             process.env.VITE_FIREBASE_APP_ID,
-}
+const serviceAccount = JSON.parse(readFileSync('./serviceAccountKey.json', 'utf8'))
 
-const app = initializeApp(firebaseConfig)
-const db  = getFirestore(app)
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+})
+
+const db = admin.firestore()
 
 // ── Claude init ────────────────────────────────────────────────────────────
 
@@ -95,7 +86,7 @@ Return a JSON object with:
 // ── Migration ──────────────────────────────────────────────────────────────
 
 async function migrate() {
-  const recipesSnap = await getDocs(collection(db, 'recipes'))
+  const recipesSnap = await db.collection('recipes').get()
 
   if (recipesSnap.empty) {
     console.log('No recipes found.')
@@ -120,12 +111,12 @@ async function migrate() {
     try {
       const result = await enrichRecipe(data)
 
-      const recipeRef = doc(db, 'recipes', recipeDoc.id)
-      const ingCol    = collection(db, 'recipes', recipeDoc.id, 'ingredients')
+      const recipeRef  = db.collection('recipes').doc(recipeDoc.id)
+      const ingColRef  = recipeRef.collection('ingredients')
 
       // Delete existing ingredient docs
-      const existingSnap = await getDocs(ingCol)
-      const batch = writeBatch(db)
+      const existingSnap = await ingColRef.get()
+      const batch = db.batch()
 
       for (const ingDoc of existingSnap.docs) {
         batch.delete(ingDoc.ref)
@@ -136,7 +127,7 @@ async function migrate() {
 
       // Write AI-parsed ingredients
       for (const ing of result.ingredients) {
-        batch.set(doc(ingCol), {
+        batch.set(ingColRef.doc(), {
           quantity:  ing.quantity  ?? null,
           quantity2: ing.quantity2 ?? null,
           unit:      ing.unit      ?? null,

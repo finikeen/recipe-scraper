@@ -25,3 +25,6 @@ dist-ssr
 
 # Git worktrees
 .worktrees/
+
+# Firebase service account key
+serviceAccountKey.json

@@ -59,6 +59,21 @@ app.post('/api/scrape', async (req, res) => {
   return res.status(200).json({ success: true, recipe })
 })
 
+app.post('/api/enrich', async (req, res) => {
+  const recipe = req.body
+
+  if (!recipe || !recipe.name) {
+    return res.status(400).json({ error: 'recipe object with name is required' })
+  }
+
+  try {
+    const enrichment = await enrichRecipe(recipe)
+    return res.status(200).json({ success: true, recipe: { ...recipe, ...enrichment } })
+  } catch (err) {
+    return res.status(200).json({ success: false, failureReason: err.message })
+  }
+})
+
 app.listen(3000, () => {
   console.log('Scraper server running on http://localhost:3000')
 })
